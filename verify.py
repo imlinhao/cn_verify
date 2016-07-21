@@ -71,23 +71,26 @@ def verify3(arrange):
             return False
     return True
 
-def verify9(arrange):
+def verify9(arrange, ds_order_df, o2o_order_df):
     # use the example to verify cal functions
     #mix_path = ["A083","A083","A083","A083","A083","B5800","B7555","B7182","B8307","B8461","A083","A083","A083","B6528","S245","B3266","B3266","B2337","A083","A083","A083","A083","S294","B1940","B6104","B8926","B9072","B6103"]
-    #orders = ["F6344","F6360","F6358","F6353","F6354","F6344","F6354","F6353","F6358","F6360","F6349","F6325","F6314","F6349","E0895","E0895","F6325","F6314","F6366","F6345","F6346","F6308","E1088","F6308","F6346","E1088","F6366","F6345"]
+    #orders = ["F6344","F6360","F6358","F6353","F6354","F6344","F6354","F6353","F6358","F6360","F6349","F6325","F6314","F6349","E0895","E0895","F6325","F6314","F6366","F6345","F6346","F6308","E1088","F6308","F6346","E1088","F6366","F6345"]   
     mix_path = arrange.Addr.tolist()
     orders = arrange.Order_id.tolist()
     mix_arrange_df = pd.DataFrame({ "Addr": mix_path, "Order_id": orders})
     mix_arrange_df["Courier_id"] = arrange.iloc[0].Courier_id
-    mix_arrange_df["Arrival_time"] = 0
-    mix_arrange_df["Departure"] = 0
+    mix_arrange_df["Arrival_time"] = arrange.iloc[0].Arrival_time
+    mix_arrange_df["Departure"] = arrange.iloc[0].Departure
     mix_arrange_df["Amount"] = 0
     pre_e = mix_arrange_df.iloc[0]
     pre_addr = pre_e.Addr
     pre_order = pre_e.Order_id
-    pre_departure = 0
-    amount = ds_order_df[ds_order_df["Order_id"]==pre_order].Num.values[0]
-    new_mix_arrange_df = pd.DataFrame({"Courier_id": [arrange.iloc[0].Courier_id], "Addr": [pre_addr], "Arrival_time": [0], "Departure": [0], "Amount": [amount],  "Order_id": [pre_order]})
+    pre_departure = arrange.iloc[0].Departure
+    if 'F' in pre_order:
+        amount = ds_order_df[ds_order_df["Order_id"]==pre_order].Num.values[0]
+    elif 'E' in pre_order:
+        amount = o2o_order_df[o2o_order_df["Order_id"]==pre_order].Num.values[0]
+    new_mix_arrange_df = pd.DataFrame({"Courier_id": [arrange.iloc[0].Courier_id], "Addr": [pre_addr], "Arrival_time": [arrange.iloc[0].Arrival_time], "Departure": [arrange.iloc[0].Departure], "Amount": [amount],  "Order_id": [pre_order]})
     for i in range(1, len(mix_arrange_df)):
         cur_e = mix_arrange_df.iloc[i]
         cur_addr = cur_e.Addr
@@ -107,8 +110,8 @@ def verify9(arrange):
         elif 'S' in cur_addr:
             arrival_time = pre_departure + cal_cost(pre_addr, cur_addr)
             amount = o2o_order_df[o2o_order_df["Order_id"]==cur_order].Num.values[0]
-            departure = time2min(o2o_order_df[o2o_order_df["Order_id"]==cur_order].Pickup_time.values[0])
-        new_mix_arrange_df = new_mix_arrange_df.append(pd.DataFrame({"Courier_id": ["D0545"], "Addr": [cur_addr], "Arrival_time": [arrival_time], "Departure": [departure], "Amount": [amount],  "Order_id": [cur_order]}))
+            departure = max(time2min(o2o_order_df[o2o_order_df["Order_id"]==cur_order].Pickup_time.values[0]), arrival_time)
+        new_mix_arrange_df = new_mix_arrange_df.append(pd.DataFrame({"Courier_id": [arrange.iloc[0].Courier_id], "Addr": [cur_addr], "Arrival_time": [arrival_time], "Departure": [departure], "Amount": [amount],  "Order_id": [cur_order]}))
         cmp_e = arrange.iloc[i]
         if cur_addr != cmp_e.Addr or amount != cmp_e.Amount or arrival_time != cmp_e.Arrival_time or departure != cmp_e.Departure:
             print "arrange %d" % i
@@ -240,7 +243,7 @@ if verify_v8(sub_df, o2o_order_df, ds_order_df) == True:
 else:
     print "V8 FAILED"
 
-v9 = np.array(map(lambda arrange: verify9(arrange), arranges))
+v9 = np.array(map(lambda arrange: verify9(arrange, ds_order_df, o2o_order_df), arranges))
 if len(v9[v9==False])==0:
     print "pass v9"
 else:
